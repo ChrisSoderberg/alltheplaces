@@ -2,7 +2,7 @@
 
 [**Website**](https://www.alltheplaces.xyz/)
 
-A project to extract GeoJSON from the web focusing on websites that have 'store locator' pages like restaurants, gas stations, retailers, etc. Each chain has its own bit of software to extract useful information from their site (a "spider"). Each spider can be individually configured to throttle request rate to act as a good citizen on the Internet. The default `User-Agent` for the spiders can be found [here](https://github.com/alltheplaces/alltheplaces/blob/master/locations/settings.py#L20), so websites wishing to prevent our spiders from accessing the data on their website can block that User Agent.
+A project to extract GeoJSON from the web focusing on websites that have 'store locator' pages like restaurants, gas stations, retailers, etc. Each chain has its own bit of software to extract useful information from their site (a "spider"). Each spider can be individually configured to throttle request rate to act as a good citizen on the Internet. The default `User-Agent` for the spiders can be found [here](https://github.com/alltheplaces/alltheplaces/blob/master/locations/settings.py#L22), so websites wishing to prevent our spiders from accessing the data on their website can block that User Agent, but please feel free to contact us with any requests or recommendations.
 
 The project is built using [`scrapy`](https://scrapy.org/), a Python-based web scraping framework. Each target website gets its own [spider](https://doc.scrapy.org/en/latest/topics/spiders.html), which does the work of extracting interesting details about locations and outputting results in a useful format.
 
@@ -100,7 +100,7 @@ If the only option is search by location, there is likely an AJAX query made to 
 
 ### Searchable Points
 
-For store locators that do allow searches by latitude/longitude, a grid of searchable latlon points is available for the US, CA, and Europe [here](https://github.com/alltheplaces/alltheplaces/tree/master/locations/searchable_points). Each point represents the centroid of a search where the radius distance is indicated in the file name. See the [Dollar General scraper](https://github.com/alltheplaces/alltheplaces/pull/1076) for an example of how you might utilize them for national searches.
+For store locators that do allow searches by latitude/longitude, a grid of searchable latlon points is available for the US, CA, AU, and Europe [here](https://github.com/alltheplaces/alltheplaces/tree/master/locations/searchable_points). Each point represents the centroid of a search where the radius distance is indicated in the file name. See the [Dollar General scraper](https://github.com/alltheplaces/alltheplaces/pull/1076) for an example of how you might utilize them for national searches.
 
 For stores that do not have a national footprint ([e.g. #1034](https://github.com/alltheplaces/alltheplaces/issues/1034)), there are separate point files that include a state/territory attribute e.g. <i>'us_centroids_100mile_radius_state.csv'</i>. This allows for points to be filtered down to specific states/territories when a national search is unnecessary.
 

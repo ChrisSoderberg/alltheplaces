@@ -1,47 +1,40 @@
 # -*- coding: utf-8 -*-
-import scrapy
-import json
-import re
+from scrapy.spiders import SitemapSpider
 
+from locations.hours import OpeningHours
 from locations.items import GeojsonPointItem
 
 
-class LjsilversSpider(scrapy.Spider):
+class LjsilversSpider(SitemapSpider):
     name = "ljsilvers"
-    item_attributes = { 'brand': "Long John Silver's", 'brand_wikidata': "Q1535221" }
+    item_attributes = {"brand": "Long John Silver's", "brand_wikidata": "Q1535221"}
     allowed_domains = ["ljsilvers.com"]
-    start_urls = (
-        'http://www.ljsilvers.com/locator?postalcode=76010',
-    )
+
+    sitemap_urls = ["https://locations.ljsilvers.com/robots.txt"]
+    sitemap_rules = [(r"^https://locations.ljsilvers.com/.*/.*/.*$", "parse")]
 
     def parse(self, response):
-        data = response.body_as_unicode()
-        base_data = re.search(r'dataout\s--Array\s\((.*)\)\s\s--><style type="text/css">', data, re.DOTALL).group(1)
-        detail_matches = re.findall(r'\((.*?)\)', base_data, re.DOTALL)
+        main = response.xpath("//main")
+        address = main.css("[itemprop=address]")
 
-        for detail_match in detail_matches:
-            key_values = re.findall(r'(.*?)\s=>\s(.*)', detail_match)
-            props = {}
+        opening_hours = OpeningHours()
+        for row in response.xpath('//*[@itemprop="openingHours"]/@content').extract():
+            day, interval = row.split(" ", 1)
+            if interval == "Closed":
+                continue
+            open_time, close_time = interval.split("-")
+            opening_hours.add_range(day, open_time, close_time)
 
-            for key_value in key_values:
-                key = key_value[0].strip()
-                value = key_value[1].strip()
-
-                if key == '[storeID]':
-                    props['ref'] = value
-                if key == '[address]':
-                    props['addr_full'] = value
-                if key == '[city]':
-                    props['city'] = value
-                if key == '[state]':
-                    props['state'] = value
-                if key == '[zip]':
-                    props['postcode'] = value
-                if key == '[phone_number]':
-                    props['phone'] = value
-                if key == '[latitude]':
-                    props['lat'] = value
-                if key == '[longitude]':
-                    props['lon'] = value
-
-            yield GeojsonPointItem(**props)
+        properties = {
+            "ref": main.attrib["itemid"],
+            "website": response.url,
+            "name": response.css("span#location-name ::text").get(),
+            "lat": response.css("[itemprop=latitude]").attrib["content"],
+            "lon": response.css("[itemprop=longitude]").attrib["content"],
+            "street_address": address.css("[itemprop=streetAddress]").attrib["content"],
+            "city": address.css(".Address-city ::text").get(),
+            "state": address.css("[itemprop=addressRegion] ::text").get(),
+            "phone": response.css("[itemprop=telephone]::text").get(),
+            "opening_hours": opening_hours.as_opening_hours(),
+        }
+        yield GeojsonPointItem(**properties)

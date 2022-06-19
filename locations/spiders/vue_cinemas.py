@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 from urllib import parse
 import scrapy
 from locations.items import GeojsonPointItem
@@ -7,11 +6,11 @@ from locations.items import GeojsonPointItem
 
 class VueCinemasSpider(scrapy.Spider):
     name = "vue_cinemas"
-    item_attributes = { 'brand': "Vue Cinemas" }
+    item_attributes = {"brand": "Vue Cinemas"}
     start_urls = ("https://www.myvue.com/data/locations/",)
 
     def parse(self, response):
-        data = json.loads(response.body_as_unicode())
+        data = response.json()
         for letter in data["venues"]:
             for cinema in letter["cinemas"]:
                 yield response.follow(

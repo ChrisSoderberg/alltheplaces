@@ -8,7 +8,7 @@ from locations.hours import OpeningHours
 
 
 class ATIPhysicalTherapySpider(scrapy.Spider):
-    download_delay = 10
+    download_delay = 1.2
     name = "ati_physical_therapy"
     item_attributes = {"brand": "ATI Physical Therapy", "brand_wikidata": "Q50039703"}
     allowed_domains = ["locations.atipt.com"]
@@ -33,7 +33,9 @@ class ATIPhysicalTherapySpider(scrapy.Spider):
         oh = OpeningHours()
         ref = re.findall(r"[^(\/)]+$", response.url)[0]
         data = json.loads(
-            response.xpath('//script[@type="application/ld+json"]/text()').extract_first()
+            response.xpath(
+                '//script[@type="application/ld+json"]/text()'
+            ).extract_first()
         )
 
         address = {}
@@ -61,7 +63,9 @@ class ATIPhysicalTherapySpider(scrapy.Spider):
             "website": response.url,
             "lat": geo.get("lat"),
             "lon": geo.get("lon"),
-            "extras": {"email": data.get("email"),},
+            "extras": {
+                "email": data.get("email"),
+            },
             "opening_hours": oh.as_opening_hours(),
         }
         yield GeojsonPointItem(**properties)

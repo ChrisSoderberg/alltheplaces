@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json
+import csv
 import re
 
 import scrapy
@@ -10,32 +10,38 @@ from locations.hours import OpeningHours
 
 class StarbucksEUSpider(scrapy.Spider):
     name = "starbucks_eu"
-    allowed_domains = ["https://www.starbucks.co.uk/"]
+    item_attributes = {"brand": "Starbucks", "brand_wikidata": "Q37158"}
+    allowed_domains = ["starbucks.co.uk"]
 
     def start_requests(self):
-        base_url = "https://www.starbucks.co.uk/api/v1/store-finder?latLng={lat}%2C{lon}"
+        base_url = (
+            "https://www.starbucks.co.uk/api/v1/store-finder?latLng={lat}%2C{lon}"
+        )
 
-        with open('./locations/searchable_points/eu_centroids_20km_radius_country.csv') as points:
-            next(points)  # Ignore the header
-            for point in points:
-                _, lat, lon, country = point.strip().split(',')
-                url = base_url.format(lat=lat, lon=lon)
-
-                yield scrapy.http.Request(url=url, callback=self.parse)
+        with open(
+            "./locations/searchable_points/eu_centroids_20km_radius_country.csv"
+        ) as points:
+            reader = csv.DictReader(points)
+            for point in reader:
+                yield scrapy.http.Request(
+                    url=base_url.format(lat=point["latitude"], lon=point["longitude"]),
+                    callback=self.parse,
+                )
 
     def parse(self, response):
-        data = json.loads(response.body_as_unicode())
+        data = response.json()
 
         for place in data["stores"]:
             try:
-                addr, postal_city = place["address"].strip().split('\n')
+                street, postal_city = place["address"].strip().split("\n")
             except:
-                addr, addr_2, postal_city = place["address"].strip().split('\n')
+                street, addr_2, postal_city = place["address"].strip().split("\n")
 
             try:
                 city_hold = re.search(
-                    r'\s([A-Z]{1,2}[a-z]*)$|\s([A-Z]{1}[a-z]*)(\s|,\s)([A-Z]{1,2}[a-z]*)$|\s([A-Z]{1}[a-z]*)\s([0-9]*)$',
-                    postal_city).groups()
+                    r"\s([A-Z]{1,2}[a-z]*)$|\s([A-Z]{1}[a-z]*)(\s|,\s)([A-Z]{1,2}[a-z]*)$|\s([A-Z]{1}[a-z]*)\s([0-9]*)$",
+                    postal_city,
+                ).groups()
                 res = [i for i in city_hold if i]
 
                 if ", " in res:
@@ -48,15 +54,32 @@ class StarbucksEUSpider(scrapy.Spider):
                 city = postal_city
                 postal = postal_city
 
+            drivethrough = "no"
+            app = "no"
+            wifi = "no"
+            for am in place["amenities"]:
+                if am["type"] == "car":
+                    drivethrough = "yes"
+                elif am["type"] == "mobile-order-pay":
+                    app = "yes"
+                elif am["type"] == "wifi":
+                    wifi = "wlan"
+
             properties = {
-                'ref': place["id"],
-                'name': place["name"],
-                'addr_full': addr,
-                'city': city,
-                'postcode': postal,
-                'lat': place["coordinates"]["lat"],
-                'lon': place["coordinates"]["lng"],
-                'phone': place["phoneNumber"]
+                "ref": place["id"],
+                "name": place["name"],
+                "street_address": street,
+                "city": city,
+                "postcode": postal,
+                "addr_full": place["address"].strip().replace("\n", ", "),
+                "lat": place["coordinates"]["lat"],
+                "lon": place["coordinates"]["lng"],
+                "phone": place["phoneNumber"],
+                "extras": {
+                    "drive_through": drivethrough,
+                    "payment:app": app,
+                    "internet_access": wifi,
+                },
             }
 
             yield GeojsonPointItem(**properties)
